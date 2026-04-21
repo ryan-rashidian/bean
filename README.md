@@ -8,6 +8,13 @@ A `Makefile` is provided for building the program (using `gcc` with `-std=gnu99`
 
 ## Usage
 
+| Flag | Option |
+| --- | --- |
+| `-c` | Characters |
+| `-w` | Words |
+| `-l` | Lines |
+| `-f` | Files |
+
 - Count characters in a text file
 
 ```bash
