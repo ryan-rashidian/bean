@@ -10,13 +10,13 @@
  */
 
 #include <ctype.h>
+#include <getopt.h>
 #include <dirent.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include <sys/stat.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
 #define FILE_START_CAP 32
 
@@ -30,10 +30,12 @@ FileArr filearr;
 bool char_opt = false;
 bool word_opt = false;
 bool line_opt = false;
+bool loc_opt  = false;
 bool file_opt = false;
 int char_count = 0;
 int word_count = 0;
 int line_count = 0;
+int loc_count  = 0;
 int file_count = 0;
 
 void terminate(const char *message)
@@ -113,14 +115,37 @@ void count_fp(FILE *fp)
 {
     int ch;
     bool word_flag = false;
+    bool comment_line = false;
+    bool comment_block = false;
+    bool blank_line = true;
 
     while ((ch = fgetc(fp)) != EOF) {
         char_count++;
-        if (ch == '\n') {
-            line_count++;
-        }
         if (!isspace(ch)) {
+            if (ch == '/' && blank_line) {
+                if ((ch = fgetc(fp)) == EOF) break;
+                char_count++;
+                if (ch == '/') comment_line = true;
+                if (ch == '*') comment_block = true;
+            }
+            if (ch == '*' && comment_block) {
+                if ((ch = fgetc(fp)) == EOF) break;
+                char_count++;
+                if (ch == '/') {
+                    comment_block = false;
+                    comment_line = true;
+                }
+            }
             word_flag = true;
+            blank_line = false;
+        }
+        if (ch == '\n') {
+            if (!comment_line && !comment_block && !blank_line) {
+                loc_count++;
+            }
+            line_count++;
+            comment_line = false;
+            blank_line = true;
         }
         if (isspace(ch) && word_flag) {
             word_count++;
@@ -153,6 +178,7 @@ void print_counts(void)
     if (char_opt) { printf("Char count: %d\n", char_count); }
     if (word_opt) { printf("Word count: %d\n", word_count); }
     if (line_opt) { printf("Line count: %d\n", line_count); }
+    if (loc_opt)  { printf("LOC count: %d\n", loc_count);   }
     if (file_opt) { printf("File count: %d\n", file_count); }
 }
 
@@ -201,17 +227,28 @@ int get_options(int argc, char *argv[])
 {
     /* Get options and return remaining arguments */
     int opt;
-    while ((opt = getopt(argc, argv, "cwlf")) != -1) {
+
+    struct option long_opts[] = {
+        {"chars", no_argument, 0, 'c'},
+        {"words", no_argument, 0, 'w'},
+        {"lines", no_argument, 0, 'l'},
+        {"loc",   no_argument, 0, 'L'},
+        {"files", no_argument, 0, 'f'},
+        {0, 0, 0, 0}
+    };
+
+    while ((opt = getopt_long(argc, argv, "cwlLf", long_opts, NULL)) != -1) {
         switch (opt) {
             case 'c': { char_opt = true; } break;
             case 'w': { word_opt = true; } break;
             case 'l': { line_opt = true; } break;
+            case 'L': { loc_opt  = true; } break;
             case 'f': { file_opt = true; } break;
-            case '?': { terminate("Try options: -c -w -l -f"); }
+            case '?': { terminate("Try options: -c -w -l -L -f"); }
             default: break;
         }
     }
-    if (!char_opt && !word_opt && !line_opt && !file_opt) {
+    if (!char_opt && !word_opt && !line_opt && !file_opt && !loc_opt) {
         /* Default to show all options */
         char_opt = word_opt = line_opt = file_opt = true;
     }
@@ -221,8 +258,14 @@ int get_options(int argc, char *argv[])
 
 int main(int argc, char *argv[])
 {
-    if (get_options(argc, argv) == 1) { detect_mode(argv[optind]); }
-    else { input_mode(); }
+    int remaining_args = get_options(argc, argv);
+    if (remaining_args == 1) {
+        detect_mode(argv[optind]);
+    } else if (remaining_args == 0) {
+        input_mode();
+    } else {
+        fprintf(stderr, "Usage: %s [option] [file-path]", argv[0]);
+    }
 
     return 0;
 }
