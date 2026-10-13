@@ -13,6 +13,7 @@ A `Makefile` is provided for building the program (using `gcc` with `-std=gnu99`
 | `-c` | Characters |
 | `-w` | Words |
 | `-l` | Lines |
+| `-L` | LoC |
 | `-f` | Files |
 
 - Count characters in a text file
@@ -38,4 +39,6 @@ bean example/
 ```bash
 bean -c
 ```
+
+- LoC (lines of code) only detects C style comments such as `//` and `/**/`
 
